@@ -42,29 +42,46 @@ typedef enum {
 } GameScreen;
 
 // TODO: Define your custom data types here
-
 #define SKYCOLOR (Color){ 41, 173, 255, 255 }
 #define GROUNDOLOR (Color){ 171, 82, 54, 255 }
+
+typedef struct Rabbit {
+    Vector2 position;
+    Vector2 velocity;
+    Texture2D image;
+} Rabbit;
+
+typedef struct Phantom {
+    int x;
+    int y;
+    Texture2D image;
+} Entity;
 
 //----------------------------------------------------------------------------------
 // Global Variables Definition (local to this module)
 //----------------------------------------------------------------------------------
-static const int targetWidth = 128;
+static const int virtualWidth = 128;
 static const int virtualHeight = 128;
 static const int screenWidth = 768;
 static const int screenHeight = 768;
 
-static const int virtualWidth = 24;
+static const int groundWidth = 24;
 
 static RenderTexture2D target = { 0 };  // Render texture to render our game
 static int frameCounter = 0;
 
 // TODO: Define global variables here, recommended to make them static
 
+static Rabbit rabbit = { 0 };
+
+static const int g = 250;
+static const int cloudsSpeed = 10;
+
 //----------------------------------------------------------------------------------
 // Module Functions Declaration
 //----------------------------------------------------------------------------------
 static void UpdateDrawFrame(void);      // Update and Draw one frame
+static void ApplyGravity(float);
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -80,10 +97,13 @@ int main(void)
     InitWindow(screenWidth, screenHeight, "The Way It Ends");
     
     // TODO: Load resources / Initialize variables at this point
+    rabbit.position = (Vector2){ 50, 50 };
+    rabbit.velocity = (Vector2){ 0.0f, 0.0f };
+    rabbit.image = LoadTexture("resources/rabbit.png");
     
     // Render texture to draw, enables screen scaling
     // NOTE: If screen is scaled, mouse input should be scaled proportionally
-    target = LoadRenderTexture(targetWidth, virtualHeight);
+    target = LoadRenderTexture(virtualWidth, virtualHeight);
     SetTextureFilter(target.texture, TEXTURE_FILTER_POINT);
 
 #if defined(PLATFORM_WEB)
@@ -122,6 +142,9 @@ void UpdateDrawFrame(void)
     // TODO: Update variables / Implement example logic at this point
    
     frameCounter++;
+    float dt = GetFrameTime();
+    ApplyGravity(dt);
+
     //----------------------------------------------------------------------------------
 
     // Draw
@@ -131,11 +154,13 @@ void UpdateDrawFrame(void)
     BeginTextureMode(target);
         ClearBackground(SKYCOLOR);
         
-        DrawRectangle(0, 0, virtualWidth, virtualHeight, GROUNDOLOR);
-        DrawLine(virtualWidth, 0, virtualWidth, virtualHeight, BLACK);
+        DrawRectangle(0, 0, groundWidth, virtualHeight, GROUNDOLOR);
+        DrawLine(groundWidth, 0, groundWidth, virtualHeight, BLACK);
 
-        DrawRectangle(targetWidth - virtualWidth, 0, virtualWidth, virtualHeight, GROUNDOLOR);
-        DrawLine(targetWidth - virtualWidth, 0, targetWidth - virtualWidth, virtualHeight, BLACK);
+        DrawRectangle(virtualWidth - groundWidth, 0, virtualWidth, virtualHeight, GROUNDOLOR);
+        DrawLine(virtualWidth - groundWidth, 0, virtualWidth - groundWidth, virtualHeight, BLACK);
+
+        DrawTextureV(rabbit.image, rabbit.position, RAYWHITE);
         
     EndTextureMode();
     
@@ -151,4 +176,10 @@ void UpdateDrawFrame(void)
 
     EndDrawing();
     //----------------------------------------------------------------------------------  
+}
+
+void ApplyGravity(float dt)
+{
+    rabbit.velocity.y += g * dt;
+    rabbit.position.y += rabbit.velocity.y * dt;
 }
