@@ -43,13 +43,18 @@ typedef enum {
 
 // TODO: Define your custom data types here
 
+#define SKYCOLOR (Color){ 41, 173, 255, 255 }
+#define GROUNDOLOR (Color){ 171, 82, 54, 255 }
+
 //----------------------------------------------------------------------------------
 // Global Variables Definition (local to this module)
 //----------------------------------------------------------------------------------
 static const int targetWidth = 128;
-static const int targetHeight = 128;
+static const int virtualHeight = 128;
 static const int screenWidth = 768;
 static const int screenHeight = 768;
+
+static const int virtualWidth = 24;
 
 static RenderTexture2D target = { 0 };  // Render texture to render our game
 static int frameCounter = 0;
@@ -78,7 +83,7 @@ int main(void)
     
     // Render texture to draw, enables screen scaling
     // NOTE: If screen is scaled, mouse input should be scaled proportionally
-    target = LoadRenderTexture(targetWidth, targetHeight);
+    target = LoadRenderTexture(targetWidth, virtualHeight);
     SetTextureFilter(target.texture, TEXTURE_FILTER_POINT);
 
 #if defined(PLATFORM_WEB)
@@ -124,11 +129,13 @@ void UpdateDrawFrame(void)
     // Render game screen to a texture, 
     // it could be useful for scaling or further shader postprocessing
     BeginTextureMode(target);
-        ClearBackground(RAYWHITE);
+        ClearBackground(SKYCOLOR);
         
-        // TODO: Draw your game screen here
+        DrawRectangle(0, 0, virtualWidth, virtualHeight, GROUNDOLOR);
+        DrawLine(virtualWidth, 0, virtualWidth, virtualHeight, BLACK);
 
-        DrawRectangle(20, 20, 50, 50, BLACK);
+        DrawRectangle(targetWidth - virtualWidth, 0, virtualWidth, virtualHeight, GROUNDOLOR);
+        DrawLine(targetWidth - virtualWidth, 0, targetWidth - virtualWidth, virtualHeight, BLACK);
         
     EndTextureMode();
     
