@@ -47,9 +47,9 @@ This template has been created to be used with raylib (www.raylib.com) and it's 
 _Copyright (c) 2014-2026 Ramon Santamaria ([@raysan5](https://github.com/raysan5))_
 -----------------------------------
 
-## $(Game Title)
+## The Way It Ends
 
-![$(Game Title)](screenshots/screenshot000.png "$(Game Title)")
+![The Way It Ends](screenshots/screenshot000.png "The Way It Ends")
 
 ### Description
 
@@ -74,9 +74,7 @@ _TODO: Show your game to the world, animated GIFs recommended!._
 
 ### Developers
 
- - $(Developer 01) - $(Role/Tasks Developed)
- - $(Developer 02) - $(Role/Tasks Developed)
- - $(Developer 03) - $(Role/Tasks Developed)
+ - mysyq - programming, art
 
 ### Links
 
