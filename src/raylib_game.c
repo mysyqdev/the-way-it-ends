@@ -108,13 +108,15 @@ static Rectangle boxes[] = {
     (Rectangle){ 50, 200, 24, 8 },
 };
 
-static Ground groundLeft = { 0 };
-static Ground groundRight = { 0 };
+static const int MAX_GROUNDS = 3;
+static Ground leftGrounds[MAX_GROUNDS];
+static Ground rightGrounds[MAX_GROUNDS];
 
 static const int MAX_PHANTOMS = 4;
-static Phantom phantoms[4];
+static Phantom phantoms[MAX_PHANTOMS];
 
 static Rectangle lowestBox;
+static Ground lowestGround;
 
 static Cloud cloud = { 0 };
 
@@ -129,6 +131,7 @@ static void ResolveRabbitCollision(float);
 static void PlayerMovement(float);
 static void RecycleBoxes(void);
 static void UpdatePhantoms(float);
+static void UpdateGrounds(void);
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -150,6 +153,23 @@ int main(void)
     rabbit.image = LoadTexture("resources/rabbit.png");
     rabbit.dir = NONE;
 
+    Texture2D leftGroundImage = LoadTexture("resources/groundLeft1.png");
+    Texture2D rightGroundImage = LoadTexture("resources/groundRight1.png");
+
+    for (int i = 0; i < MAX_GROUNDS; i++)
+    {
+        Ground leftGround;
+        leftGround.rec = (Rectangle){0, -virtualHeight + (virtualHeight * i), groundWidth, virtualHeight};
+        leftGround.image = leftGroundImage;
+        leftGrounds[i] = leftGround;
+
+        Ground rightGround;
+        rightGround.rec = (Rectangle){virtualWidth - groundWidth, -virtualHeight + (virtualHeight * i), groundWidth, virtualHeight};
+        rightGround.image = rightGroundImage;
+        rightGrounds[i] = rightGround;
+    }
+    lowestGround = leftGrounds[MAX_GROUNDS - 1];
+
     lowestBox = boxes[MAX_BOXES - 1];
 
     cloud.rec = (Rectangle){groundWidth, -virtualHeight * 2, virtualWidth - (2 * groundWidth), virtualHeight + 10};
@@ -164,7 +184,7 @@ int main(void)
         phantoms[i] = phantom;
     }
 
-    camera.target = (Vector2){ virtualWidth/2.0f, rabbit.rec.y + rabbit.rec.height / 2 };
+    camera.target = (Vector2){ virtualWidth/2.0f, rabbit.rec.y + rabbit.rec.height / 2 + 30 };
     camera.offset = (Vector2){ virtualWidth/2.0f, virtualHeight/2.0f };
     camera.rotation = 0.0f;
     camera.zoom = 1.0f;
@@ -193,6 +213,8 @@ int main(void)
     
     // TODO: Unload all loaded resources at this point
     UnloadTexture(rabbit.image);
+    UnloadTexture(leftGroundImage);
+    UnloadTexture(rightGroundImage);
 
     CloseWindow();        // Close window and OpenGL context
     //--------------------------------------------------------------------------------------
@@ -237,17 +259,18 @@ void UpdateDrawFrame(void)
     RecycleBoxes();
 
     UpdatePhantoms(dt);
+    UpdateGrounds();
 
     ResolveRabbitCollision(dt);
 
-    LOG("x: %f\n", rabbit.rec.x);
-    LOG("y: %f\n", rabbit.rec.y);
-    LOG("velocity x: %f\n", rabbit.velocity.x);
-    LOG("velocity y: %f\n", rabbit.velocity.y);
-    if (rabbit.isGrounded) LOG("RABBIT IS GROUNDED\n");
-    else LOG("RABBIT NOT GROUNDED\n");
+    // LOG("x: %f\n", rabbit.rec.x);
+    // LOG("y: %f\n", rabbit.rec.y);
+    // LOG("velocity x: %f\n", rabbit.velocity.x);
+    // LOG("velocity y: %f\n", rabbit.velocity.y);
+    // if (rabbit.isGrounded) LOG("RABBIT IS GROUNDED\n");
+    // else LOG("RABBIT NOT GROUNDED\n");
 
-    camera.target = (Vector2){virtualWidth/2.0f, rabbit.rec.y + rabbit.rec.height / 2};
+    camera.target = (Vector2){virtualWidth/2.0f, rabbit.rec.y + rabbit.rec.height / 2 + 30};
 
     //----------------------------------------------------------------------------------
 
@@ -263,6 +286,12 @@ void UpdateDrawFrame(void)
         for (int i = 0; i < MAX_BOXES; i++)
         {
             DrawRectangleRec(boxes[i], GROUNDOLOR);
+        }
+
+        for (int i = 0; i < MAX_GROUNDS; i++)
+        {
+            DrawTexture(leftGrounds[i].image, leftGrounds[i].rec.x, leftGrounds[i].rec.y, WHITE);
+            DrawTexture(rightGrounds[i].image, rightGrounds[i].rec.x, rightGrounds[i].rec.y, WHITE);
         }
 
         DrawTextureV(rabbit.image, (Vector2){ rabbit.rec.x, rabbit.rec.y }, WHITE);
@@ -413,6 +442,19 @@ void UpdatePhantoms(float dt)
             phantoms[i].rec.x = GetRandomValue(groundWidth, virtualWidth - groundWidth);
             phantoms[i].rec.y = rabbit.rec.y + virtualHeight + GetRandomValue(0, 50);
             phantoms[i].velocity = -GetRandomValue(25, 35);
+        }
+    }
+}
+
+void UpdateGrounds(void)
+{
+    for (int i = 0; i < MAX_GROUNDS; i++)
+    {
+        if (camera.target.y - camera.offset.y - leftGrounds[i].rec.y >= virtualHeight * 2)
+        {
+            leftGrounds[i].rec.y = lowestGround.rec.y + lowestGround.rec.height;
+            rightGrounds[i].rec.y = lowestGround.rec.y + lowestGround.rec.height;
+            lowestGround = leftGrounds[i];
         }
     }
 }
