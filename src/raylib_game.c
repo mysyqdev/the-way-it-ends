@@ -45,17 +45,32 @@ typedef enum {
 #define SKYCOLOR (Color){ 41, 173, 255, 255 }
 #define GROUNDOLOR (Color){ 171, 82, 54, 255 }
 
+typedef enum {
+    UP,
+    DOWN,
+    LEFT,
+    RIGHT,
+    NONE
+} Direction;
+
 typedef struct Rabbit {
-    Vector2 position;
+    Rectangle rec;
     Vector2 velocity;
     Texture2D image;
+    bool isGrounded;
+    Direction dir;
 } Rabbit;
 
+typedef struct Cloud {
+    Rectangle rec;
+    float velocity;
+} Cloud;
+
 typedef struct Phantom {
-    int x;
-    int y;
+    Rectangle rec;
+    float velocity;
     Texture2D image;
-} Entity;
+} Phantom;
 
 //----------------------------------------------------------------------------------
 // Global Variables Definition (local to this module)
@@ -75,13 +90,37 @@ static int frameCounter = 0;
 static Rabbit rabbit = { 0 };
 
 static const int g = 250;
-static const int cloudsSpeed = 10;
+static const float cloudsSpeed = 40.0f;
+static const int rabbitSpeedX = 50;
+
+static const int MAX_BOXES = 6;
+static Rectangle boxes[] = {
+    (Rectangle){ 29, 52, 24, 8 },
+    (Rectangle){ 63, 82, 32, 8 },
+    (Rectangle){ 37, 104, 19, 8 },
+    (Rectangle){ 45, 134, 24, 8 },
+    (Rectangle){ 30, 160, 19, 8 },
+    (Rectangle){ 50, 200, 24, 8 },
+};
+
+static const int MAX_PHANTOMS = 4;
+static Phantom phantoms[4];
+
+static Rectangle lowestBox;
+
+static Cloud cloud = { 0 };
+
+Camera2D camera = { 0 };
 
 //----------------------------------------------------------------------------------
 // Module Functions Declaration
 //----------------------------------------------------------------------------------
 static void UpdateDrawFrame(void);      // Update and Draw one frame
 static void ApplyGravity(float);
+static void ResolveRabbitCollision(float);
+static void PlayerMovement(float);
+static void RecycleBoxes(void);
+static void UpdatePhantoms(float);
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -97,9 +136,30 @@ int main(void)
     InitWindow(screenWidth, screenHeight, "The Way It Ends");
     
     // TODO: Load resources / Initialize variables at this point
-    rabbit.position = (Vector2){ 50, 50 };
+    rabbit.rec = (Rectangle){ 50, 0 , 7, 8};
     rabbit.velocity = (Vector2){ 0.0f, 0.0f };
+    rabbit.isGrounded = false;
     rabbit.image = LoadTexture("resources/rabbit.png");
+    rabbit.dir = NONE;
+
+    lowestBox = boxes[MAX_BOXES - 1];
+
+    cloud.rec = (Rectangle){groundWidth, -virtualHeight * 2, virtualWidth - (2 * groundWidth), virtualHeight + 10};
+    cloud.velocity = cloudsSpeed;
+
+    // init phantoms
+    for (int i = 0; i < MAX_PHANTOMS; i++)
+    {
+        float velocity = -30.0f;
+        Rectangle rec = (Rectangle){ GetRandomValue(groundWidth, virtualWidth - groundWidth), virtualHeight * 2 + GetRandomValue(0, 30), 8, 9};
+        Phantom phantom = (Phantom){ rec, velocity };
+        phantoms[i] = phantom;
+    }
+
+    camera.target = (Vector2){ virtualWidth/2.0f, rabbit.rec.y + rabbit.rec.height / 2 };
+    camera.offset = (Vector2){ virtualWidth/2.0f, virtualHeight/2.0f };
+    camera.rotation = 0.0f;
+    camera.zoom = 1.0f;
     
     // Render texture to draw, enables screen scaling
     // NOTE: If screen is scaled, mouse input should be scaled proportionally
@@ -124,6 +184,7 @@ int main(void)
     UnloadRenderTexture(target);
     
     // TODO: Unload all loaded resources at this point
+    UnloadTexture(rabbit.image);
 
     CloseWindow();        // Close window and OpenGL context
     //--------------------------------------------------------------------------------------
@@ -143,7 +204,42 @@ void UpdateDrawFrame(void)
    
     frameCounter++;
     float dt = GetFrameTime();
+
+    cloud.rec.y += cloud.velocity * dt;
+
+    PlayerMovement(dt);
     ApplyGravity(dt);
+    
+    switch (rabbit.dir)
+    {
+        case LEFT:
+            rabbit.velocity.x = -rabbitSpeedX;
+            break;
+        case RIGHT:
+            rabbit.velocity.x = rabbitSpeedX;
+            break;
+        case NONE:
+            rabbit.velocity.x = 0;
+            break;
+        default:
+            break;
+        
+    }
+
+    RecycleBoxes();
+
+    UpdatePhantoms(dt);
+
+    ResolveRabbitCollision(dt);
+
+    LOG("x: %f\n", rabbit.rec.x);
+    LOG("y: %f\n", rabbit.rec.y);
+    LOG("velocity x: %f\n", rabbit.velocity.x);
+    LOG("velocity y: %f\n", rabbit.velocity.y);
+    if (rabbit.isGrounded) LOG("RABBIT IS GROUNDED\n");
+    else LOG("RABBIT NOT GROUNDED\n");
+
+    camera.target = (Vector2){virtualWidth/2.0f, rabbit.rec.y + rabbit.rec.height / 2};
 
     //----------------------------------------------------------------------------------
 
@@ -151,16 +247,29 @@ void UpdateDrawFrame(void)
     //----------------------------------------------------------------------------------
     // Render game screen to a texture, 
     // it could be useful for scaling or further shader postprocessing
-    BeginTextureMode(target);
+    BeginTextureMode(target);   
         ClearBackground(SKYCOLOR);
-        
-        DrawRectangle(0, 0, groundWidth, virtualHeight, GROUNDOLOR);
+
+        BeginMode2D(camera);
+
+        for (int i = 0; i < MAX_BOXES; i++)
+        {
+            DrawRectangleRec(boxes[i], GROUNDOLOR);
+        }
+
+        DrawTextureV(rabbit.image, (Vector2){ rabbit.rec.x, rabbit.rec.y }, WHITE);
+
+        for (int i = 0; i < MAX_PHANTOMS; i++)
+        {
+            DrawRectangleRec(phantoms[i].rec, PURPLE);
+        }
+
+        DrawRectangleRec(cloud.rec, RAYWHITE);
+
+        EndMode2D();
+
         DrawLine(groundWidth, 0, groundWidth, virtualHeight, BLACK);
-
-        DrawRectangle(virtualWidth - groundWidth, 0, virtualWidth, virtualHeight, GROUNDOLOR);
-        DrawLine(virtualWidth - groundWidth, 0, virtualWidth - groundWidth, virtualHeight, BLACK);
-
-        DrawTextureV(rabbit.image, rabbit.position, RAYWHITE);
+        DrawLine(virtualWidth - groundWidth + 1, 0, virtualWidth - groundWidth + 1, virtualHeight, BLACK); // Why?
         
     EndTextureMode();
     
@@ -181,5 +290,121 @@ void UpdateDrawFrame(void)
 void ApplyGravity(float dt)
 {
     rabbit.velocity.y += g * dt;
-    rabbit.position.y += rabbit.velocity.y * dt;
+}
+
+void ResolveRabbitCollision(float dt)
+{
+    rabbit.rec.x += rabbit.velocity.x * dt;
+    if (rabbit.rec.x < groundWidth) rabbit.rec.x = groundWidth;
+    else if (rabbit.rec.x > virtualWidth - groundWidth - rabbit.rec.width) rabbit.rec.x = virtualWidth - groundWidth - rabbit.rec.width;
+
+    for (int i = 0; i < MAX_BOXES; i++)
+    {
+        if (CheckCollisionRecs(rabbit.rec, boxes[i]))
+        {
+            LOG(" -- HORIZONTAL COLLISION --\n");
+            if (rabbit.velocity.x > 0)
+            {
+                rabbit.rec.x = boxes[i].x - rabbit.rec.width;
+            }
+            else if (rabbit.velocity.x < 0)
+            {
+                rabbit.rec.x = boxes[i].x + boxes[i].width;
+            }
+            rabbit.velocity.x = 0;
+        }
+    }
+
+    rabbit.rec.y += rabbit.velocity.y * dt;
+    for (int i = 0; i < MAX_BOXES; i++)
+    {
+        if (CheckCollisionRecs(rabbit.rec, boxes[i]))
+        {
+            LOG(" -- VERTICAL COLLISION --\n");
+            if (rabbit.velocity.y >= 0)
+            {
+                LOG("FALL DOWN\n");
+                rabbit.isGrounded = true;
+                rabbit.rec.y = boxes[i].y - rabbit.rec.height;
+            }
+            else if (rabbit.velocity.y < 0)
+            {
+                rabbit.rec.y = boxes[i].y + boxes[i].height;
+            }
+            rabbit.velocity.y = 0;
+
+            break;
+        }
+        else
+        {
+            LOG(" -- NO VERTICAL COLLISION --\n");
+            rabbit.isGrounded = false;
+        }
+    }
+
+    if (CheckCollisionRecs(rabbit.rec, cloud.rec))
+    {
+        LOG("GAME OVER\n");
+    }
+
+    for (int i = 0; i < MAX_PHANTOMS; i++)
+    {
+        if (CheckCollisionRecs(rabbit.rec, phantoms[i].rec))
+        {
+            LOG("GAME OVER\n");
+            break;
+        }
+    }
+}
+
+void PlayerMovement(float dt)
+{
+    rabbit.dir = NONE;
+
+    if (IsKeyDown(KEY_A)) 
+    {
+        LOG("-- MOVE LEFT --\n");
+        rabbit.dir = LEFT;
+    }
+
+    if (IsKeyDown(KEY_D)) 
+    {
+        LOG("-- MOVE RIGHT --\n");
+        if (rabbit.dir == LEFT) rabbit.dir = NONE;
+        else rabbit.dir = RIGHT;
+    }
+
+    if (IsKeyDown(KEY_SPACE) && rabbit.isGrounded) 
+    {
+        rabbit.velocity.y = -150;
+        rabbit.isGrounded = false;
+    }
+}
+
+void RecycleBoxes(void)
+{
+    for (int i = 0; i < MAX_BOXES; i++)
+    {
+        if (boxes[i].y <= camera.target.y - camera.offset.y - 50)
+        {
+            boxes[i].x = GetRandomValue(groundWidth, virtualWidth - groundWidth - boxes[i].width);
+            boxes[i].y = lowestBox.y + lowestBox.height + GetRandomValue(10, 50);
+            lowestBox = boxes[i];
+        }
+    }
+}
+
+void UpdatePhantoms(float dt)
+{
+    for (int i = 0; i < MAX_PHANTOMS; i++)
+    {
+        phantoms[i].rec.y += phantoms[i].velocity * dt;
+
+        if (phantoms[i].rec.y <= camera.target.y - camera.offset.y - 50 )
+        {
+            phantoms[i].rec.x = GetRandomValue(groundWidth, virtualWidth - groundWidth);
+            phantoms[i].rec.y = rabbit.rec.y + virtualHeight + GetRandomValue(0, 50);
+            phantoms[i].velocity = -GetRandomValue(25, 35);
+        }
+    }
 }
