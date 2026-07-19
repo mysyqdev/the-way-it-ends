@@ -131,6 +131,10 @@ static Cloud cloud = { 0 };
 
 Camera2D camera = { 0 };
 
+Music music;
+
+GameScreen gameScreen = SCREEN_TITLE;
+
 //----------------------------------------------------------------------------------
 // Module Functions Declaration
 //----------------------------------------------------------------------------------
@@ -141,8 +145,8 @@ static void PlayerMovement(float);
 static void RecycleBoxes(void);
 static void UpdatePhantoms(float);
 static void UpdateGrounds(void);
-
 static void UpdateFlowers(float);
+static void RestartGame(void);
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -210,6 +214,10 @@ int main(void)
     camera.offset = (Vector2){ virtualWidth/2.0f, virtualHeight/2.0f };
     camera.rotation = 0.0f;
     camera.zoom = 1.0f;
+
+    InitAudioDevice();
+    music = LoadMusicStream("resources/bitterDays.mp3");
+    PlayMusicStream(music);
     
     // Render texture to draw, enables screen scaling
     // NOTE: If screen is scaled, mouse input should be scaled proportionally
@@ -237,6 +245,9 @@ int main(void)
     UnloadTexture(rabbit.image);
     UnloadTexture(leftGroundImage);
     UnloadTexture(rightGroundImage);
+    UnloadMusicStream(music);
+
+    CloseAudioDevice();
 
     CloseWindow();        // Close window and OpenGL context
     //--------------------------------------------------------------------------------------
@@ -253,38 +264,60 @@ void UpdateDrawFrame(void)
     // Update
     //----------------------------------------------------------------------------------
     // TODO: Update variables / Implement example logic at this point
-   
-    frameCounter++;
-    float dt = GetFrameTime();
 
-    cloud.rec.y += cloud.velocity * dt;
-    UpdateFlowers(dt);
-
-    PlayerMovement(dt);
-    ApplyGravity(dt);
-    
-    switch (rabbit.dir)
+    switch (gameScreen)
     {
-        case LEFT:
-            rabbit.velocity.x = -rabbitSpeedX;
+        case SCREEN_TITLE:
+            if (IsKeyDown(KEY_SPACE))
+            {
+                gameScreen = SCREEN_GAMEPLAY;
+            }
             break;
-        case RIGHT:
-            rabbit.velocity.x = rabbitSpeedX;
+        case SCREEN_GAMEPLAY:
+            UpdateMusicStream(music);
+
+            frameCounter++;
+            float dt = GetFrameTime();
+
+            cloud.rec.y += cloud.velocity * dt;
+            UpdateFlowers(dt);
+
+            PlayerMovement(dt);
+            ApplyGravity(dt);
+            
+            switch (rabbit.dir)
+            {
+                case LEFT:
+                    rabbit.velocity.x = -rabbitSpeedX;
+                    break;
+                case RIGHT:
+                    rabbit.velocity.x = rabbitSpeedX;
+                    break;
+                case NONE:
+                    rabbit.velocity.x = 0;
+                    break;
+                default:
+                    break;
+                
+            }
+
+            RecycleBoxes();
+
+            UpdatePhantoms(dt);
+            UpdateGrounds();
+
+            ResolveRabbitCollision(dt);
+            camera.target = (Vector2){virtualWidth/2.0f, rabbit.rec.y + rabbit.rec.height / 2 + 10};
+
             break;
-        case NONE:
-            rabbit.velocity.x = 0;
+        case SCREEN_ENDING:
+            if (IsKeyDown(KEY_SPACE))
+            {
+                RestartGame();
+                gameScreen = SCREEN_GAMEPLAY;
+            }
             break;
-        default:
-            break;
-        
     }
-
-    RecycleBoxes();
-
-    UpdatePhantoms(dt);
-    UpdateGrounds();
-
-    ResolveRabbitCollision(dt);
 
     // LOG("x: %f\n", rabbit.rec.x);
     // LOG("y: %f\n", rabbit.rec.y);
@@ -292,8 +325,6 @@ void UpdateDrawFrame(void)
     // LOG("velocity y: %f\n", rabbit.velocity.y);
     // if (rabbit.isGrounded) LOG("RABBIT IS GROUNDED\n");
     // else LOG("RABBIT NOT GROUNDED\n");
-
-    camera.target = (Vector2){virtualWidth/2.0f, rabbit.rec.y + rabbit.rec.height / 2 + 10};
 
     //----------------------------------------------------------------------------------
 
@@ -347,6 +378,18 @@ void UpdateDrawFrame(void)
             (Rectangle){ 0, 0, (float)screenWidth, (float)screenHeight }, (Vector2){ 0, 0 }, 0.0f, WHITE);
 
         // TODO: Draw everything that requires to be drawn at this point, maybe UI?
+        switch (gameScreen)
+        {
+            case SCREEN_TITLE:
+                DrawText("THE WAY IT ENDS", 40, screenHeight / 2 - 100, 70, RAYWHITE);
+                break;
+            case SCREEN_GAMEPLAY:
+                DrawText(TextFormat("%d", (int)rabbit.rec.y), 108 * 6, 4 * 6, 24, RAYWHITE);
+                break;
+            case SCREEN_ENDING:
+                DrawText("THIS ISN'T WHERE", 40, screenHeight / 2 - 100, 70, RAYWHITE);
+                DrawText("WE MEANT TO BE", 60, screenHeight / 2 - 20, 70, RAYWHITE);
+        }
 
     EndDrawing();
     //----------------------------------------------------------------------------------  
@@ -409,14 +452,16 @@ void ResolveRabbitCollision(float dt)
 
     if (CheckCollisionRecs(rabbit.rec, cloud.rec))
     {
-        LOG("GAME OVER\n");
+        gameScreen = SCREEN_ENDING;
+        StopMusicStream(music);
     }
 
     for (int i = 0; i < MAX_PHANTOMS; i++)
     {
         if (CheckCollisionRecs(rabbit.rec, phantoms[i].rec))
         {
-            LOG("GAME OVER\n");
+            gameScreen = SCREEN_ENDING;
+            StopMusicStream(music);
             break;
         }
     }
@@ -502,4 +547,45 @@ void UpdateFlowers(float dt)
             flowers[i].rec.y = rabbit.rec.y + virtualHeight / 2 + GetRandomValue(30, 200);
         }
     }
+}
+
+void RestartGame(void)
+{
+    rabbit.rec = (Rectangle){ 50, 0 , 7, 8};
+    rabbit.velocity = (Vector2){ 0.0f, 0.0f };
+    rabbit.isGrounded = false;
+    rabbit.dir = NONE;
+
+    for (int i = 0; i < MAX_FLOWERS; i++)
+    {
+        flowers[i].rec = (Rectangle){ GetRandomValue(groundWidth, virtualWidth - groundWidth - 3), virtualHeight + GetRandomValue(0, 50), 3, 3};
+        flowers[i].velocity = (Vector2){ 0.0f, -30.0f };
+    }
+
+    for (int i = 0; i < MAX_GROUNDS; i++)
+    {
+        leftGrounds[i].rec = (Rectangle){0, -virtualHeight + (virtualHeight * i), groundWidth, virtualHeight};
+        rightGrounds[i].rec = (Rectangle){virtualWidth - groundWidth, -virtualHeight + (virtualHeight * i), groundWidth, virtualHeight};
+    }
+    lowestGround = leftGrounds[MAX_GROUNDS - 1];
+
+    boxes[0] = (Rectangle){ 29, 52, 24, 8 };
+    boxes[1] = (Rectangle){ 63, 82, 32, 8 };
+    boxes[2] = (Rectangle){ 37, 104, 19, 8 };
+    boxes[3] = (Rectangle){ 45, 134, 24, 8 };
+    boxes[4] = (Rectangle){ 30, 160, 19, 8 };
+    boxes[5] = (Rectangle){ 50, 200, 24, 8 };
+
+    lowestBox = boxes[MAX_BOXES - 1];
+
+    cloud.rec = (Rectangle){groundWidth, -virtualHeight * 2, virtualWidth - (2 * groundWidth), virtualHeight + 10};
+    cloud.velocity = cloudsSpeed;
+
+    for (int i = 0; i < MAX_PHANTOMS; i++)
+    {
+        phantoms[i].rec = (Rectangle){ GetRandomValue(groundWidth, virtualWidth - groundWidth - 8), virtualHeight * 2 + GetRandomValue(0, 30), 8, 9};
+    }
+
+    camera.target = (Vector2){ virtualWidth/2.0f, rabbit.rec.y + rabbit.rec.height / 2 };
+    PlayMusicStream(music);
 }

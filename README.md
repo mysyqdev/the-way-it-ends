@@ -1,5 +1,5 @@
 - [ ] Death screen
-- [ ] Music
+- [x] Music
 - [ ] Score
 - [ ] SFX
 - [ ] Particles
