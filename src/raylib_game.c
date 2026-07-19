@@ -72,6 +72,11 @@ typedef struct Phantom {
     Texture2D image;
 } Phantom;
 
+typedef struct Ground {
+    Rectangle rec;
+    Texture2D image;
+} Ground;
+
 //----------------------------------------------------------------------------------
 // Global Variables Definition (local to this module)
 //----------------------------------------------------------------------------------
@@ -102,6 +107,9 @@ static Rectangle boxes[] = {
     (Rectangle){ 30, 160, 19, 8 },
     (Rectangle){ 50, 200, 24, 8 },
 };
+
+static Ground groundLeft = { 0 };
+static Ground groundRight = { 0 };
 
 static const int MAX_PHANTOMS = 4;
 static Phantom phantoms[4];
