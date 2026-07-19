@@ -18,6 +18,7 @@
 #include <stdio.h>                          // Required for: printf()
 #include <stdlib.h>                         // Required for: 
 #include <string.h>                         // Required for:
+#include <math.h>
 
 //----------------------------------------------------------------------------------
 // Defines and Macros
@@ -35,7 +36,6 @@
 // Types and Structures Definition
 //----------------------------------------------------------------------------------
 typedef enum { 
-    SCREEN_LOGO = 0, 
     SCREEN_TITLE, 
     SCREEN_GAMEPLAY, 
     SCREEN_ENDING
@@ -77,6 +77,12 @@ typedef struct Ground {
     Texture2D image;
 } Ground;
 
+typedef struct Flower {
+    Rectangle rec;
+    Texture2D image;
+    Vector2 velocity;
+} Flower;
+
 //----------------------------------------------------------------------------------
 // Global Variables Definition (local to this module)
 //----------------------------------------------------------------------------------
@@ -95,7 +101,7 @@ static int frameCounter = 0;
 static Rabbit rabbit = { 0 };
 
 static const int g = 250;
-static const float cloudsSpeed = 40.0f;
+static const float cloudsSpeed = 50.0f;
 static const int rabbitSpeedX = 50;
 
 static const int MAX_BOXES = 6;
@@ -115,6 +121,9 @@ static Ground rightGrounds[MAX_GROUNDS];
 static const int MAX_PHANTOMS = 4;
 static Phantom phantoms[MAX_PHANTOMS];
 
+static const int MAX_FLOWERS = 5;
+static Flower flowers[MAX_FLOWERS];
+
 static Rectangle lowestBox;
 static Ground lowestGround;
 
@@ -132,6 +141,8 @@ static void PlayerMovement(float);
 static void RecycleBoxes(void);
 static void UpdatePhantoms(float);
 static void UpdateGrounds(void);
+
+static void UpdateFlowers(float);
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -155,6 +166,17 @@ int main(void)
 
     Texture2D leftGroundImage = LoadTexture("resources/groundLeft1.png");
     Texture2D rightGroundImage = LoadTexture("resources/groundRight1.png");
+
+    Texture2D flowerImage = LoadTexture("resources/flower.png");
+
+    for (int i = 0; i < MAX_FLOWERS; i++)
+    {
+        Flower flower;
+        flower.rec = (Rectangle){ GetRandomValue(groundWidth, virtualWidth - groundWidth - 3), virtualHeight + GetRandomValue(0, 50), 3, 3};
+        flower.image = flowerImage;
+        flower.velocity = (Vector2){ 0.0f, -30.0f };
+        flowers[i] = flower;
+    }
 
     for (int i = 0; i < MAX_GROUNDS; i++)
     {
@@ -184,7 +206,7 @@ int main(void)
         phantoms[i] = phantom;
     }
 
-    camera.target = (Vector2){ virtualWidth/2.0f, rabbit.rec.y + rabbit.rec.height / 2 + 30 };
+    camera.target = (Vector2){ virtualWidth/2.0f, rabbit.rec.y + rabbit.rec.height / 2 };
     camera.offset = (Vector2){ virtualWidth/2.0f, virtualHeight/2.0f };
     camera.rotation = 0.0f;
     camera.zoom = 1.0f;
@@ -236,6 +258,7 @@ void UpdateDrawFrame(void)
     float dt = GetFrameTime();
 
     cloud.rec.y += cloud.velocity * dt;
+    UpdateFlowers(dt);
 
     PlayerMovement(dt);
     ApplyGravity(dt);
@@ -270,7 +293,7 @@ void UpdateDrawFrame(void)
     // if (rabbit.isGrounded) LOG("RABBIT IS GROUNDED\n");
     // else LOG("RABBIT NOT GROUNDED\n");
 
-    camera.target = (Vector2){virtualWidth/2.0f, rabbit.rec.y + rabbit.rec.height / 2 + 30};
+    camera.target = (Vector2){virtualWidth/2.0f, rabbit.rec.y + rabbit.rec.height / 2 + 10};
 
     //----------------------------------------------------------------------------------
 
@@ -282,6 +305,11 @@ void UpdateDrawFrame(void)
         ClearBackground(SKYCOLOR);
 
         BeginMode2D(camera);
+
+        for (int i = 0; i < MAX_FLOWERS; i++)
+        {
+            DrawTexture(flowers[i].image , flowers[i].rec.x, flowers[i].rec.y, WHITE);
+        }
 
         for (int i = 0; i < MAX_BOXES; i++)
         {
@@ -439,7 +467,7 @@ void UpdatePhantoms(float dt)
 
         if (phantoms[i].rec.y <= camera.target.y - camera.offset.y - 50 )
         {
-            phantoms[i].rec.x = GetRandomValue(groundWidth, virtualWidth - groundWidth);
+            phantoms[i].rec.x = GetRandomValue(groundWidth, virtualWidth - groundWidth - phantoms[i].rec.width);
             phantoms[i].rec.y = rabbit.rec.y + virtualHeight + GetRandomValue(0, 50);
             phantoms[i].velocity = -GetRandomValue(25, 35);
         }
@@ -455,6 +483,23 @@ void UpdateGrounds(void)
             leftGrounds[i].rec.y = lowestGround.rec.y + lowestGround.rec.height;
             rightGrounds[i].rec.y = lowestGround.rec.y + lowestGround.rec.height;
             lowestGround = leftGrounds[i];
+        }
+    }
+}
+
+void UpdateFlowers(float dt)
+{
+    for (int i = 0; i < MAX_FLOWERS; i++)
+    {
+        flowers[i].velocity.y = -fmaxf(30.0f, rabbit.velocity.y / 2);
+        flowers[i].velocity.x = GetRandomValue(-10, 10);
+        flowers[i].rec.x += flowers[i].velocity.x * dt;
+        flowers[i].rec.y += flowers[i].velocity.y * dt;
+
+        if (camera.target.y - camera.offset.y - flowers[i].rec.y >= virtualHeight)
+        {
+            flowers[i].rec.x = GetRandomValue(groundWidth, virtualWidth - groundWidth - 3);
+            flowers[i].rec.y = rabbit.rec.y + virtualHeight / 2 + GetRandomValue(30, 200);
         }
     }
 }

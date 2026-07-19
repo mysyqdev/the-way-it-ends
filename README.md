@@ -1,3 +1,15 @@
+- [ ] Death screen
+- [ ] Music
+- [ ] Score
+- [ ] SFX
+- [ ] Particles
+- [ ] Breaking boxes
+- [ ] Rabbit animations
+- [ ] Boxes sprites
+- [ ] Randomize boxes
+- [ ] Carrots?
+- [ ] Wall sliding
+
 -----------------------------------
 _DISCLAIMER:_
 
