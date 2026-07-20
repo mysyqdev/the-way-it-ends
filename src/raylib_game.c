@@ -133,8 +133,10 @@ static Cloud cloud = { 0 };
 Camera2D camera = { 0 };
 
 Music music;
+
 Sound deathSound;
 Sound landingSound;
+bool didLandingSoundPlay = false;
 
 GameScreen gameScreen = SCREEN_TITLE;
 
@@ -242,7 +244,8 @@ int main(void)
 
     InitAudioDevice();
     music = LoadMusicStream("resources/bitterDays.mp3");
-    deathSound LoadSound("resources")
+    deathSound = LoadSound("resources/death.wav");
+    landingSound = LoadSound("resources/landing.wav");
     PlayMusicStream(music);
     
     // Render texture to draw, enables screen scaling
@@ -275,6 +278,8 @@ int main(void)
     UnloadTexture(groundMediumImage);
     UnloadTexture(groundBigImage);
     UnloadTexture(phantomImage);
+    UnloadSound(deathSound);
+    UnloadSound(landingSound);
     UnloadMusicStream(music);
 
     CloseAudioDevice();
@@ -445,7 +450,7 @@ void ResolveRabbitCollision(float dt)
     {
         if (CheckCollisionRecs(rabbit.rec, groundBoxes[i].rec))
         {
-            LOG(" -- HORIZONTAL COLLISION --\n");
+            // LOG(" -- HORIZONTAL COLLISION --\n");
             if (rabbit.velocity.x > 0)
             {
                 rabbit.rec.x = groundBoxes[i].rec.x - rabbit.rec.width;
@@ -463,10 +468,10 @@ void ResolveRabbitCollision(float dt)
     {
         if (CheckCollisionRecs(rabbit.rec, groundBoxes[i].rec))
         {
-            LOG(" -- VERTICAL COLLISION --\n");
+            // LOG(" -- VERTICAL COLLISION --\n");
             if (rabbit.velocity.y >= 0)
             {
-                LOG("FALL DOWN\n");
+                // LOG("FALL DOWN\n");
                 rabbit.isGrounded = true;
                 rabbit.rec.y = groundBoxes[i].rec.y - rabbit.rec.height;
             }
@@ -480,7 +485,8 @@ void ResolveRabbitCollision(float dt)
         }
         else
         {
-            LOG(" -- NO VERTICAL COLLISION --\n");
+            // LOG(" -- NO VERTICAL COLLISION --\n");
+            didLandingSoundPlay = false;
             rabbit.isGrounded = false;
         }
     }
@@ -488,6 +494,7 @@ void ResolveRabbitCollision(float dt)
     if (CheckCollisionRecs(rabbit.rec, cloud.rec))
     {
         gameScreen = SCREEN_ENDING;
+        PlaySound(deathSound);
         StopMusicStream(music);
     }
 
@@ -496,6 +503,7 @@ void ResolveRabbitCollision(float dt)
         if (CheckCollisionRecs(rabbit.rec, phantoms[i].rec))
         {
             gameScreen = SCREEN_ENDING;
+            PlaySound(deathSound);
             StopMusicStream(music);
             break;
         }
