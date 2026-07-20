@@ -105,6 +105,7 @@ static const float cloudsSpeed = 50.0f;
 static const int rabbitSpeedX = 50;
 
 static const int MAX_BOXES = 6;
+static Ground groundBoxes[MAX_BOXES];
 static Rectangle boxes[] = {
     (Rectangle){ 29, 52, 24, 8 },
     (Rectangle){ 63, 82, 32, 8 },
@@ -124,7 +125,7 @@ static Phantom phantoms[MAX_PHANTOMS];
 static const int MAX_FLOWERS = 5;
 static Flower flowers[MAX_FLOWERS];
 
-static Rectangle lowestBox;
+static Ground lowestBox;
 static Ground lowestGround;
 
 static Cloud cloud = { 0 };
@@ -166,7 +167,28 @@ int main(void)
     rabbit.velocity = (Vector2){ 0.0f, 0.0f };
     rabbit.isGrounded = false;
     rabbit.image = LoadTexture("resources/rabbit.png");
-    rabbit.dir = NONE;
+    rabbit.dir = NONE;  
+
+    Texture2D groundSmallImage = LoadTexture("resources/groundSmall.png");
+    Texture2D groundMediumImage = LoadTexture("resources/groundMedium.png");
+    Texture2D groundBigImage = LoadTexture("resources/groundBig.png");
+
+    for (int i = 0; i < MAX_BOXES; i++)
+    {
+        groundBoxes[i].rec = boxes[i];
+        if (boxes[i].width == 19)
+        {
+            groundBoxes[i].image = groundSmallImage;
+        }
+        else if (boxes[i].width == 24)
+        {
+            groundBoxes[i].image = groundMediumImage;
+        }
+        else
+        {
+            groundBoxes[i].image = groundBigImage;
+        }
+    }
 
     Texture2D leftGroundImage = LoadTexture("resources/groundLeft1.png");
     Texture2D rightGroundImage = LoadTexture("resources/groundRight1.png");
@@ -196,7 +218,7 @@ int main(void)
     }
     lowestGround = leftGrounds[MAX_GROUNDS - 1];
 
-    lowestBox = boxes[MAX_BOXES - 1];
+    lowestBox = groundBoxes[MAX_BOXES - 1];
 
     cloud.rec = (Rectangle){groundWidth, -virtualHeight * 2, virtualWidth - (2 * groundWidth), virtualHeight + 10};
     cloud.velocity = cloudsSpeed;
@@ -245,6 +267,9 @@ int main(void)
     UnloadTexture(rabbit.image);
     UnloadTexture(leftGroundImage);
     UnloadTexture(rightGroundImage);
+    UnloadTexture(groundSmallImage);
+    UnloadTexture(groundMediumImage);
+    UnloadTexture(groundBigImage);
     UnloadMusicStream(music);
 
     CloseAudioDevice();
@@ -279,7 +304,7 @@ void UpdateDrawFrame(void)
             frameCounter++;
             float dt = GetFrameTime();
 
-            cloud.velocity = (rabbit.rec.y - cloud.rec.y - cloud.rec.height) / 1;
+            cloud.velocity = fmaxf(rabbit.rec.y - cloud.rec.y - cloud.rec.height, 2) ;
             cloud.rec.y += cloud.velocity * dt;
             UpdateFlowers(dt);
 
@@ -345,7 +370,8 @@ void UpdateDrawFrame(void)
 
         for (int i = 0; i < MAX_BOXES; i++)
         {
-            DrawRectangleRec(boxes[i], GROUNDOLOR);
+            // DrawRectangleRec(boxes[i], GROUNDOLOR);
+            DrawTexture(groundBoxes[i].image, groundBoxes[i].rec.x, groundBoxes[i].rec.y, WHITE);
         }
 
         for (int i = 0; i < MAX_GROUNDS; i++)
@@ -412,16 +438,16 @@ void ResolveRabbitCollision(float dt)
 
     for (int i = 0; i < MAX_BOXES; i++)
     {
-        if (CheckCollisionRecs(rabbit.rec, boxes[i]))
+        if (CheckCollisionRecs(rabbit.rec, groundBoxes[i].rec))
         {
             LOG(" -- HORIZONTAL COLLISION --\n");
             if (rabbit.velocity.x > 0)
             {
-                rabbit.rec.x = boxes[i].x - rabbit.rec.width;
+                rabbit.rec.x = groundBoxes[i].rec.x - rabbit.rec.width;
             }
             else if (rabbit.velocity.x < 0)
             {
-                rabbit.rec.x = boxes[i].x + boxes[i].width;
+                rabbit.rec.x = groundBoxes[i].rec.x + groundBoxes[i].rec.width;
             }
             rabbit.velocity.x = 0;
         }
@@ -430,18 +456,18 @@ void ResolveRabbitCollision(float dt)
     rabbit.rec.y += rabbit.velocity.y * dt;
     for (int i = 0; i < MAX_BOXES; i++)
     {
-        if (CheckCollisionRecs(rabbit.rec, boxes[i]))
+        if (CheckCollisionRecs(rabbit.rec, groundBoxes[i].rec))
         {
             LOG(" -- VERTICAL COLLISION --\n");
             if (rabbit.velocity.y >= 0)
             {
                 LOG("FALL DOWN\n");
                 rabbit.isGrounded = true;
-                rabbit.rec.y = boxes[i].y - rabbit.rec.height;
+                rabbit.rec.y = groundBoxes[i].rec.y - rabbit.rec.height;
             }
             else if (rabbit.velocity.y < 0)
             {
-                rabbit.rec.y = boxes[i].y + boxes[i].height;
+                rabbit.rec.y = groundBoxes[i].rec.y + groundBoxes[i].rec.height;
             }
             rabbit.velocity.y = 0;
 
@@ -499,11 +525,11 @@ void RecycleBoxes(void)
 {
     for (int i = 0; i < MAX_BOXES; i++)
     {
-        if (boxes[i].y <= camera.target.y - camera.offset.y - 50)
+        if (groundBoxes[i].rec.y <= camera.target.y - camera.offset.y - 50)
         {
-            boxes[i].x = GetRandomValue(groundWidth, virtualWidth - groundWidth - boxes[i].width);
-            boxes[i].y = lowestBox.y + lowestBox.height + GetRandomValue(10, 50);
-            lowestBox = boxes[i];
+            groundBoxes[i].rec.x = GetRandomValue(groundWidth, virtualWidth - groundWidth - groundBoxes[i].rec.width);
+            groundBoxes[i].rec.y = lowestBox.rec.y + lowestBox.rec.height + GetRandomValue(10, 50);
+            lowestBox = groundBoxes[i];
         }
     }
 }
@@ -573,14 +599,14 @@ void RestartGame(void)
     }
     lowestGround = leftGrounds[MAX_GROUNDS - 1];
 
-    boxes[0] = (Rectangle){ 29, 52, 24, 8 };
-    boxes[1] = (Rectangle){ 63, 82, 32, 8 };
-    boxes[2] = (Rectangle){ 37, 104, 19, 8 };
-    boxes[3] = (Rectangle){ 45, 134, 24, 8 };
-    boxes[4] = (Rectangle){ 30, 160, 19, 8 };
-    boxes[5] = (Rectangle){ 50, 200, 24, 8 };
+    groundBoxes[0].rec = (Rectangle){ 29, 52, 24, 8 };
+    groundBoxes[1].rec = (Rectangle){ 63, 82, 32, 8 };
+    groundBoxes[2].rec = (Rectangle){ 37, 104, 19, 8 };
+    groundBoxes[3].rec = (Rectangle){ 45, 134, 24, 8 };
+    groundBoxes[4].rec = (Rectangle){ 30, 160, 19, 8 };
+    groundBoxes[5].rec = (Rectangle){ 50, 200, 24, 8 };
 
-    lowestBox = boxes[MAX_BOXES - 1];
+    lowestBox = groundBoxes[MAX_BOXES - 1];
 
     cloud.rec = (Rectangle){groundWidth, -virtualHeight * 2, virtualWidth - (2 * groundWidth), virtualHeight + 10};
     cloud.velocity = cloudsSpeed;
