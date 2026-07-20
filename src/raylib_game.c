@@ -133,6 +133,8 @@ static Cloud cloud = { 0 };
 Camera2D camera = { 0 };
 
 Music music;
+Sound deathSound;
+Sound landingSound;
 
 GameScreen gameScreen = SCREEN_TITLE;
 
@@ -224,11 +226,12 @@ int main(void)
     cloud.velocity = cloudsSpeed;
 
     // init phantoms
+    Texture2D phantomImage = LoadTexture("resources/phantom.png");
     for (int i = 0; i < MAX_PHANTOMS; i++)
     {
         float velocity = -30.0f;
-        Rectangle rec = (Rectangle){ GetRandomValue(groundWidth, virtualWidth - groundWidth), virtualHeight * 2 + GetRandomValue(0, 30), 8, 9};
-        Phantom phantom = (Phantom){ rec, velocity };
+        Rectangle rec = (Rectangle){ GetRandomValue(groundWidth, virtualWidth - groundWidth), virtualHeight * 2 + GetRandomValue(0, 30), 8, 6};
+        Phantom phantom = (Phantom){ rec, velocity, phantomImage };
         phantoms[i] = phantom;
     }
 
@@ -239,6 +242,7 @@ int main(void)
 
     InitAudioDevice();
     music = LoadMusicStream("resources/bitterDays.mp3");
+    deathSound LoadSound("resources")
     PlayMusicStream(music);
     
     // Render texture to draw, enables screen scaling
@@ -270,6 +274,7 @@ int main(void)
     UnloadTexture(groundSmallImage);
     UnloadTexture(groundMediumImage);
     UnloadTexture(groundBigImage);
+    UnloadTexture(phantomImage);
     UnloadMusicStream(music);
 
     CloseAudioDevice();
@@ -384,7 +389,7 @@ void UpdateDrawFrame(void)
 
         for (int i = 0; i < MAX_PHANTOMS; i++)
         {
-            DrawRectangleRec(phantoms[i].rec, PURPLE);
+            DrawTexture(phantoms[i].image, phantoms[i].rec.x, phantoms[i].rec.y, WHITE);
         }
 
         DrawRectangleRec(cloud.rec, RAYWHITE);
@@ -613,7 +618,7 @@ void RestartGame(void)
 
     for (int i = 0; i < MAX_PHANTOMS; i++)
     {
-        phantoms[i].rec = (Rectangle){ GetRandomValue(groundWidth, virtualWidth - groundWidth - 8), virtualHeight * 2 + GetRandomValue(0, 30), 8, 9};
+        phantoms[i].rec = (Rectangle){ GetRandomValue(groundWidth, virtualWidth - groundWidth - 8) + 1, virtualHeight * 2 + GetRandomValue(0, 30), 7, 6};
     }
 
     camera.target = (Vector2){ virtualWidth/2.0f, rabbit.rec.y + rabbit.rec.height / 2 };

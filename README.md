@@ -1,11 +1,12 @@
-- [ ] Death screen
+- [x] Death screen
 - [x] Music
-- [ ] Score
+- [x] Score
+- [ ] Phantom spites
 - [ ] SFX
 - [ ] Particles
 - [ ] Breaking boxes
 - [ ] Rabbit animations
-- [ ] Boxes sprites
+- [x] Boxes sprites
 - [ ] Randomize boxes
 - [ ] Carrots?
 - [ ] Wall sliding
