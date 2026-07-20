@@ -279,6 +279,7 @@ void UpdateDrawFrame(void)
             frameCounter++;
             float dt = GetFrameTime();
 
+            cloud.velocity = (rabbit.rec.y - cloud.rec.y - cloud.rec.height) / 1;
             cloud.rec.y += cloud.velocity * dt;
             UpdateFlowers(dt);
 
@@ -382,6 +383,7 @@ void UpdateDrawFrame(void)
         {
             case SCREEN_TITLE:
                 DrawText("THE WAY IT ENDS", 40, screenHeight / 2 - 100, 70, RAYWHITE);
+                DrawText("press SPACE to start", 200, screenHeight / 2 + 30, 30, RAYWHITE);
                 break;
             case SCREEN_GAMEPLAY:
                 DrawText(TextFormat("%d", (int)rabbit.rec.y), 108 * 6, 4 * 6, 24, RAYWHITE);
@@ -389,6 +391,8 @@ void UpdateDrawFrame(void)
             case SCREEN_ENDING:
                 DrawText("THIS ISN'T WHERE", 40, screenHeight / 2 - 100, 70, RAYWHITE);
                 DrawText("WE MEANT TO BE", 60, screenHeight / 2 - 20, 70, RAYWHITE);
+                DrawText("press SPACE to restart", 200, screenHeight / 2 + 60, 30, RAYWHITE);
+                DrawText(TextFormat("%d", (int)rabbit.rec.y), 108 * 6, 4 * 6, 24, RAYWHITE);
         }
 
     EndDrawing();
